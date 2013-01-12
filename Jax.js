@@ -1,14 +1,14 @@
 var Jax = {
 
-    OPEN: 1,
-    P1: 2,
-    P2: 4,
-    P3: 8,
+    OPEN_FLAG: 1,
+    P1_FLAG: 2,
+    P2_FLAG: 4,
+    P3_FLAG: 8,
     LOCKED_H: 16,
     LOCKED_V: 32,
     LOCKED_DL: 64,
     LOCKED_DR: 128,
-    PLAYERS: [2, 4, 8],
+    PLAYER_FLAGS: [2, 4, 8],
     DIAMOND: 0,
     HEART: 13,
     CLUB: 26,
@@ -20,24 +20,11 @@ var Jax = {
     JACK_SPADE: 49,
     CAPTURE_FACTOR: 6,
     IN_HAND_FACTOR: 4,
-    BLOCKER_FACTOR: 1/(6*6),
+    BLOCKER_FACTOR: 1 / (6 * 6),
     SEQUENCE_BOARD: [],
     CLASSIC_BOARD: [],
     SUITS: ['DIAMOND', 'HEART', 'CLUB', 'SPADE'],
-    DECKS: [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-        20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-        30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-        40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-        50, 51, 52, 52,
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
-        10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-        20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-        30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
-        40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-        50, 51, 52, 52
-    ],
+    DECKS: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 52, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 52],
     CARDS: ['A', 2, 3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K'],
 
     cardToCells: [],
@@ -53,7 +40,7 @@ var Jax = {
         this.BOARDS = {
             sequence: this.readBoard([
                 'jj', '6d', '7d', '8d', '9d', '10d', 'qd', 'kd', 'ad', 'jj',
-                '5d', '3h', '2h', '2s', '3c', '4s', '5s', '6s', '7s', 'ac',
+                '5d', '3h', '2h', '2s', '3s', '4s', '5s', '6s', '7s', 'ac',
                 '4d', '4h', 'kd', 'ad', 'ac', 'kc', 'qc', '10c', '8s', 'kc',
                 '3d', '5h', 'qd', 'qh', '10h', '9h', '8h', '9c', '9s', 'qc',
                 '2d', '6h', '10d', 'kh', '3h', '2h', '7h', '8c', '10s', '10c',
@@ -88,49 +75,24 @@ var Jax = {
                 'kc', '4d', '5d', '6d', '7d', '8d', '9d', '10d', 'qd', 'kd'
             ])
         }
+    },
 
-        $('#discardPile').click(function() {
+    initCellStates: function (boardCells) {
 
-            var activeCard = Jax.myActiveCard,
-                cards = Jax.players[0].cards;
+        var cellStates = [];
 
-            if (activeCard && Jax.isDeadCard(activeCard.value)) {
+        for (var i = 0; i < 100; i++) {
 
-                discardCard(0, activeCard.index);
-                displayHand();
-                delete Jax.myActiveCard;
+            var card = boardCells[i];
+
+            if (card != Jax.JOKER) {
+                cellStates[i] = Jax.OPEN_FLAG;
+            } else {
+                cellStates[i] = Jax.P1_FLAG | Jax.P2_FLAG | Jax.P3_FLAG | Jax.OPEN_FLAG;
             }
-        });
+        }
 
-        $('button.play').click(function() {
-
-            $('#splash, #rules, #dialog').hide();
-            $('#game').show();
-            Jax.newGame(['sequence', 'oneEyedJack', 'custom1'][Math.floor(Math.random() * 3)]);
-        });
-
-        $('#splash button.rules').click(function() {
-
-            $('#splash, #game, #rules').hide();
-            $('#rules button.back').hide()
-            $('#rules button.play').show()
-            $('#rules').show();
-        });
-
-        $('#game button.rules').click(function() {
-
-            $('#splash, #game, #rules').hide();
-            $('#rules button.back').show()
-            $('#rules button.play').hide()
-            $('#rules').show();
-        });
-
-        $('#rules button.back').click(function() {
-
-            $('#dialog, #rules').hide();
-            $('#game').show();
-        });
-
+        return cellStates;
     },
 
     newGame: function (boardName) {
@@ -152,24 +114,7 @@ var Jax = {
         this.cardToCells[Jax.JACK_HEART] = this.cardToCells[Jax.JACK_SPADE] = [];
 
         var html = [];
-        for (var i = 0; i < 100; i++) {
 
-            var card = board[i];
-
-            if (card != Jax.JOKER) {
-                Jax.cellStates[i] = Jax.OPEN;
-                Jax.cellCards[i] = card;
-                var suit = Jax.SUITS[Math.floor(card / 13)];
-                var val = this.CARDS[card % 13];
-                html.push('<li data-cell="' + i + '" data-value="' + card + '" data-suit="' + suit + '"><div class="tl">' + val + '</div><div class="br">' + val + '</div></li>');
-            } else {
-                html.push('<li data-cell="' + i + '" data-value="' + card + '" data-suit="JOKER"><div>&nbsp;</div><div>&nbsp;</div></li>');
-                Jax.cellStates[i] = Jax.P1 | Jax.P2 | Jax.P3 | Jax.OPEN;
-            }
-
-            // initialize cell entry to array
-            this.cardToCells[card] = [i].concat(this.cardToCells[card]);
-        }
 
         $('#board').html(html.join(''));
 
@@ -202,7 +147,7 @@ var Jax = {
             if (activeCard) {
 
                 if ((Jax.isOpen(cellIndex) && (card == activeCard.value || Jax.isBlackJack(activeCard.value))) ||
-                    (Jax.isRedJack(activeCard.value) && Jax.isOccupied(cellIndex) && !Jax.isOccupiedBy(cellIndex, Jax.P1))) {
+                    (Jax.isRedJack(activeCard.value) && Jax.isOccupied(cellIndex) && !Jax.isOccupiedBy(cellIndex, Jax.P1_FLAG))) {
 
                     if (playCard(0, cellIndex, activeCard.index) == false) {
                         autoPlay(1);
@@ -216,7 +161,7 @@ var Jax = {
         displayHand();
     },
 
-    gameOver: function(winner) {
+    gameOver: function (winner) {
 
         $('#dialog p').html(winner == 0 ? "You win!" : "You just got whooped by a computer.");
         $('#dialog').css('z-index', 10000).show();
@@ -268,6 +213,7 @@ var Jax = {
     },
 
     shuffleDecks: function () {
+
         var a = [].concat(Jax.DECKS);
         for (var i = a.length - 1; i; i--) {
             var j = parseInt(Math.random() * i);
@@ -300,18 +246,18 @@ var Jax = {
         };
     },
 
-    isDeadCard: function(card) {
+    isDeadCard: function (card, cellStates) {
 
-        var cells = this.cardToCells[card],
+        var cells = (cellStates || Jax.cellStates)[card],
             result = true;
 
-        if(this.isJack(card)) {
+        if (this.isJack(card)) {
             result = false;
         } else {
 
-            for(var i=0; i<cells.length; i++) {
+            for (var i = 0; i < cells.length; i++) {
 
-                if(!this.isOccupied(cells[i])) {
+                if (!this.isOccupied(cells[i])) {
 
                     result = false;
                     break;
@@ -322,35 +268,35 @@ var Jax = {
         return result;
     },
 
-    isOpen: function (index) {
+    isOpen: function (index, cellStates) {
 
-        return !Jax.isOccupied(index);
+        return !Jax.isOccupied(index, cellStates);
     },
 
-    isOccupied: function (index) {
+    isOccupied: function (index, cellStates) {
 
-        return !(Jax.cellStates[index] & Jax.OPEN);
+        return !((cellStates || Jax.cellStates)[index] & Jax.OPEN_FLAG);
     },
 
-    isLockedH: function (index) {
-        return !!(Jax.cellStates[index] & Jax.LOCKED_H);
+    isLockedH: function (index, cellStates) {
+        return !!((cellStates || Jax.cellStates)[index] & Jax.LOCKED_H);
     },
 
-    isLockedV: function (index) {
-        return !!(Jax.cellStates[index] & Jax.LOCKED_V);
+    isLockedV: function (index, cellStates) {
+        return !!((cellStates || Jax.cellStates)[index] & Jax.LOCKED_V);
     },
 
-    isLockedDL: function (index) {
-        return !!(Jax.cellStates[index] & Jax.LOCKED_DL);
+    isLockedDL: function (index, cellStates) {
+        return !!((cellStates || Jax.cellStates)[index] & Jax.LOCKED_DL);
     },
 
-    isLockedDR: function (index) {
-        return !!(Jax.cellStates[index] & Jax.LOCKED_DR);
+    isLockedDR: function (index, cellStates) {
+        return !!((cellStates || Jax.cellStates)[index] & Jax.LOCKED_DR);
     },
 
-    isOccupiedBy: function (index, player) {
+    isOccupiedBy: function (index, player, cellStates) {
 
-        return !!(Jax.cellStates[index] & player);
+        return !!((cellStates || Jax.cellStates)[index] & player);
     },
 
     isRedJack: function (card) {
@@ -391,160 +337,88 @@ var Jax = {
             Jax.calcDLMultiplier(cellIndex, playerIndex)) || 1;
     },
 
-    isSeq: function (index, player) {
+    isSeq: function (index, player, cellStates) {
 
-        return Jax.isHSeq(index, player) || Jax.isVSeq(index, player) || Jax.isDLSeq(index, player) || Jax.isDRSeq(index, player);
+        return Jax.isHSeq(index, player, cellStates) || Jax.isVSeq(index, player, cellStates) ||
+            Jax.isDLSeq(index, player, cellStates) || Jax.isDRSeq(index, player, cellStates);
     },
 
-    isHSeq: function (index, player) {
+    ias: function (index, player, start, end, increment, cellStates) {
+
+        var isSeq = false;
+
+        if (end - start >= 4 * increment) {
+
+            for (var i = start; i <= end - (increment * 4); i += increment) {
+
+                var matchCnt = 0;
+                var lockCnt = 0;
+
+                for (var k = i; k <= i + increment + 4; k++) {
+                    if (Jax.isOccupiedBy(k, player, cellStates)) {
+                        matchCnt++;
+                        if (Jax.isLockedH(k, cellStates)) {
+                            lockCnt++;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                if ((lockCnt == 0 && matchCnt >= 5) || matchCnt == 10) {
+                    isSeq = true;
+                    break;
+                }
+            }
+        }
+
+        return isSeq;
+    },
+    isHSeq: function (index, player, cellStates) {
 
         var cell = Jax.cellify(index),
             start = cell.cl,
-            end = cell.cr,
-            isSeq = false;
+            end = cell.cr;
 
-        // just 4
-        if (end - start >= 4) {
-
-            for (var i = start; i <= end - 4; i++) {
-
-                var matchCnt = 0;
-                var lockCnt = 0;
-
-                for (var k = i; k <= end; k++) {
-                    if (Jax.isOccupiedBy(k, player)) {
-                        matchCnt++;
-                        if (Jax.isLockedH(k)) {
-                            lockCnt++;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                if ((lockCnt == 0 && matchCnt >= 5) || matchCnt == 10) {
-                    isSeq = true;
-                    break;
-                }
-            }
-        }
-        return isSeq;
+        return this.ias(index, player, start, end, 1, cellStates);
     },
 
-    isVSeq: function (index, player) {
+    isVSeq: function (index, player, cellStates) {
 
         var cell = Jax.cellify(index),
             start = cell.tc,
-            end = cell.bc,
-            isSeq = false;
+            end = cell.bc;
 
-        // 4 * 10
-        if (end - start >= 40) {
-
-            for (var i = start; i <= end - 40; i += 10) {
-
-                var matchCnt = 0;
-                var lockCnt = 0;
-
-                for (var k = i; k <= end; k += 10) {
-                    if (Jax.isOccupiedBy(k, player)) {
-                        matchCnt++;
-                        if (Jax.isLockedH(k)) {
-                            lockCnt++;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                if ((lockCnt == 0 && matchCnt >= 5) || matchCnt == 10) {
-                    isSeq = true;
-                    break;
-                }
-            }
-        }
-        return isSeq;
+        return this.ias(index, player, start, end, 10, cellStates);
     },
 
-    isDLSeq: function (index, player) {
+    isDLSeq: function (index, player, cellStates) {
 
         var cell = Jax.cellify(index),
             start = cell.tl,
-            end = cell.br,
-            isSeq = false;
+            end = cell.br;
 
-        // 4 * 10 + 4
-        if (end - start >= 44) {
-
-            for (var i = start; i <= end - 44; i += 11) {
-
-                var matchCnt = 0;
-                var lockCnt = 0;
-
-                for (var k = i; k <= end; k += 11) {
-                    if (Jax.isOccupiedBy(k, player)) {
-                        matchCnt++;
-                        if (Jax.isLockedH(k)) {
-                            lockCnt++;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                if ((lockCnt == 0 && matchCnt >= 5) || matchCnt == 10) {
-                    isSeq = true;
-                    break;
-                }
-            }
-        }
-        return isSeq;
+        return this.ias(index, player, start, end, 11, cellStates);
     },
 
-    isDRSeq: function (index, player) {
+    isDRSeq: function (index, player, cellStates) {
         var cell = Jax.cellify(index),
             start = cell.tr,
-            end = cell.bl,
-            isSeq = false;
+            end = cell.bl;
 
-        // 4 * 10 - 4
-        if (end - start >= 36) {
-
-            for (var i = start; i <= end - 36; i += 9) {
-
-                var matchCnt = 0;
-                var lockCnt = 0;
-
-                for (var k = i; k <= end; k += 9) {
-                    if (Jax.isOccupiedBy(k, player)) {
-                        matchCnt++;
-                        if (Jax.isLockedH(k)) {
-                            lockCnt++;
-                        }
-                    } else {
-                        break;
-                    }
-                }
-
-                if ((lockCnt == 0 && matchCnt >= 5) || matchCnt == 10) {
-                    isSeq = true;
-                    break;
-                }
-            }
-        }
-        return isSeq;
+        return this.ias(index, player, start, end, 9, cellStates);
     },
 
-    isCardInHand: function(card, playerIndex) {
+    isCardInHand: function (card, playerIndex) {
 
         var cards = Jax.players[playerIndex].cards;
 
         return (cards.indexOf(card) != -1);
     },
 
-    gmc: function(start, end, increment, playerIndex) {
+    gmc: function (start, end, increment, playerIndex) {
 
-        var player = Jax.PLAYERS[playerIndex],
+        var player = Jax.PLAYER_FLAGS[playerIndex],
             multiplier = 0;
 
         if (end - start >= 4 * increment) {
@@ -610,3 +484,6 @@ var Jax = {
         return this.gmc(start, end, 9, playerIndex)
     }
 };
+
+Jax.init();
+exports.Jax = Jax;

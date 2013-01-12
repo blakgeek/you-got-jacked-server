@@ -1,5 +1,6 @@
 var io = require('socket.io').listen(9000, {log: false}),
-    uuid = require('node-uuid');
+    uuid = require('node-uuid'),
+    Jax = require('./Jax').Jax;
 
 var games = [];
 var activeGames = {};
@@ -33,56 +34,87 @@ io.sockets.on('connection', function (socket) {
 
 function createGame(gameId) {
 
-    activeGames[gameId] = activeGames[gameId] || {
-        boardName: 'custom1',
-        boardCells: [],
+    var boardName = ['sequence', 'oneEyedJack', 'custom1'][new Date().getTime()%3],
+        boardCells = Jax.BOARDS[boardName];
+
+    var game = activeGames[gameId] = activeGames[gameId] || {
+        boardName: boardName,
+        boardCells: boardCells,
         maxPlayers: 2,
         playerCnt: 0,
-        deck: [],
+        deck: Jax.shuffleDecks(),
         discarded: [],
-        cellState: [],
+        cellStates: Jax.initCellStates(boardCells),
         players: []
     };
-    var game = activeGames[gameId];
 
     io.of("/" + gameId).on('connection', function (socket) {
-        console.log('Game connected!');
-        var playerIndex, player,
-            boardCells = game.boardCells;
 
+        console.log('Game connection established!');
+
+        var playerIndex, player;
+
+        // begin event handler registration
         socket.on('join', function (name) {
             console.log(name + " joined " + gameId);
 
-            socket.broadcast.emit('opponent-joined', name);
             playerIndex = game.playerCnt;
             player = game.players[playerIndex] = {
+                flag: Jax.PLAYER_FLAGS[playerIndex],
+                name: name,
                 sessionId: '',
                 cards: [],
                 canPlay: false
             }
+
+            socket.broadcast.emit('joined', boardName);
+            socket.broadcast.emit('opponent-joined', name, playerIndex);
+
             game.playerCnt++;
             if (game.playerCnt == 2) {
 
-                console.log('Starting game: ' + gameId)
-                socket.broadcast.emit('start-game', game);
-                socket.emit('start-game', game);
+                console.log('Starting game: ' + gameId);
+
+                var p1Cards = game.players[0].cards;
+                var p2Cards = game.players[1].cards;
+                for(i = 0; i<7; i++) {
+                    p1Cards.push(game.deck.pop());
+                    p2Cards.push(game.deck.pop());
+                }
+
+
+                socket.broadcast.emit('start-game', boardName, p1Cards);
+                socket.emit('start-game', boardName, p2Cards);
+                game.players[0].canPlay = true;
+                socket.broadcast.emit('take-turn');
             }
         });
 
         socket.on('play', function (cellIndex, cardIndex) {
-            console.log("played in cell: " + cellIndex);
+            console.log("attempting to play card " + cardIndex + " in cell " + cellIndex);
 
             var drawnCard,
                 card = player.cards[cardIndex];
 
-            // TODO: validate that the card at cardIndex is valid to be played on cellIndex
-            if (isValidPlay) {
-                socket.emit('invalid-play');
+            if (isValidPlay(cellIndex, cardIndex, player, game)) {
+
+                var drawnCard = game.deck.pop();
+                player.cards.splice(cardIndex, 1, drawnCard);
+                game.discarded.push(drawnCard);
+                socket.emit('play-accepted', playerIndex, cellIndex, card);
+                socket.broadcast.emit('play-accepted', playerIndex, cellIndex, card);
+
+                if(Jax.isSeq(cellIndex, game.cellStates)) {
+                    socket.emit('winner');
+                    socket.broadcast.emit('loser');
+                } else {
+                    socket.emit('card-drawn', drawnCard, cardIndex);
+                    player.canPlay = false;
+                    game.players[(playerIndex + 1) % 2].canPlay = true;
+                    socket.broadcast.emit('take-turn');
+                }
             } else {
-                socket.emit('play-accepted');
-                socket.emit('drawnCard-drawn', drawnCard);
-                socket.broadcast.emit('opponent-played', playerIndex, cellIndex, card);
-                socket.broadcast.emit('take-turn');
+                socket.emit('invalid-play');
             }
         });
 
@@ -96,12 +128,15 @@ function createGame(gameId) {
     });
 }
 
-function isValidPlay(playersCardIndex, cellIndex) {
+function isValidPlay(cellIndex, playersCardIndex, player, game) {
 
-    var playersCard = hand[playerCardIndex],
-        cellCard = boardCells[cellIndex],
-        cardMatchesCell = (isOpen(cellIndex) && (playersCard == cellCard || isBlackJack(card))),
-        isJackable = (isRedJack(card) && isOccupied(cellIndex) && isOccupiedBy(cellIndex, playerConst));
+    var playersCard = player.cards[playersCardIndex],
+        cellCard = game.boardCells[cellIndex],
+        cellStates = game.cellStates,
+        playersTurn = player.canPlay,
+        cardMatchesCell = (Jax.isOpen(cellIndex, cellStates) && (playersCard == cellCard || Jax.isBlackJack(playersCard))),
+        isJackable = (Jax.isRedJack(playersCard) && Jax.isOccupied(cellIndex, cellStates) && isOccupiedBy(cellIndex, player.flag, game, cellStates));
 
-    return (cardMatchesCell || isJackable);
+    // could be optimized to skip all this processing its not the users turn.
+    return (playersTurn && (cardMatchesCell || isJackable));
 }
