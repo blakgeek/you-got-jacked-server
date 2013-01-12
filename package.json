@@ -1,0 +1,8 @@
+{
+    "name": "JaxServer",
+    "description": "Jax game server built on socket.io",
+    "version": "0.0.1",
+    "dependencies": {
+        "socket.io": "*"
+    }
+}
