@@ -135,7 +135,7 @@ function isValidPlay(cellIndex, playersCardIndex, player, game) {
         cellStates = game.cellStates,
         playersTurn = player.canPlay,
         cardMatchesCell = (Jax.isOpen(cellIndex, cellStates) && (playersCard == cellCard || Jax.isBlackJack(playersCard))),
-        isJackable = (Jax.isRedJack(playersCard) && Jax.isOccupied(cellIndex, cellStates) && isOccupiedBy(cellIndex, player.flag, game, cellStates));
+        isJackable = (Jax.isRedJack(playersCard) && Jax.isOccupied(cellIndex, cellStates) && !isOccupiedBy(cellIndex, player.flag, game, cellStates));
 
     // could be optimized to skip all this processing its not the users turn.
     return (playersTurn && (cardMatchesCell || isJackable));
